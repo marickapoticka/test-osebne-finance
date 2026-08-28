@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans p-6 max-w-7xl mx-auto">
+<body class="bg-gray-50 text-gray-800 font-sans p-4 sm:p-6 max-w-7xl mx-auto">
 
   <!-- OKNO ZA PRIJAVO -->
   <div id="login-modal" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-50">
@@ -30,7 +30,7 @@
   <div id="app-content" class="hidden">
 
     <!-- Glava -->
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
       <div>
         <h1 class="text-2xl font-bold">Osebni proračun</h1>
         <p class="text-gray-500 text-sm">Uporabnik: <span id="prikaz-uporabnika" class="font-semibold text-gray-700"></span>
@@ -63,6 +63,17 @@
         </select>
       </div>
     </header>
+
+    <!-- Orodna vrstica: izvoz / uvoz -->
+    <div class="flex justify-end gap-2 mb-6">
+      <button onclick="izvoziPodatke()" class="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm transition">
+        <i class="fa-solid fa-download"></i> Izvozi podatke
+      </button>
+      <button onclick="sprozitelUvoz()" class="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm transition">
+        <i class="fa-solid fa-upload"></i> Uvozi podatke
+      </button>
+      <input type="file" id="uvoz-file-input" accept="application/json" class="hidden" onchange="uvoziPodatke(event)">
+    </div>
 
     <!-- KPI Kartice -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -102,10 +113,16 @@
           <button onclick="openVnosModal('prihodek')" class="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 shadow-sm py-3 px-4 rounded-2xl font-semibold text-sm text-gray-800 transition"><i class="fa-solid fa-plus text-emerald-600"></i> Prihodek</button>
         </div>
 
+        <!-- Prihodki -->
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm min-h-[100px]">
+          <h3 class="font-semibold text-sm text-gray-700 mb-3">Prihodki</h3>
+          <div id="seznam-prihodki" class="space-y-2 text-sm text-gray-600"><p class="text-center text-gray-400 my-4">V tem ciklu še ni vnesenih prihodkov.</p></div>
+        </div>
 
         <!-- Plačila s kartico -->
         <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm min-h-[140px]">
           <h3 class="font-semibold text-sm text-gray-700 mb-3">Plačila s kartico</h3>
+          <div id="graf-kategorije" class="mb-4 hidden pb-4 border-b border-gray-50"></div>
           <div id="seznam-kartica" class="space-y-2 text-sm text-gray-600"><p class="text-center text-gray-400 my-4">V tem ciklu še ni plačil s kartico.</p></div>
         </div>
 
@@ -142,6 +159,9 @@
             <span id="porabljeno-text">Porabljeno: 0,00 €</span>
             <span id="ostane-text">Ostane: 0,00 €</span>
           </div>
+          <p id="budget-opozorilo" class="hidden text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i><span></span>
+          </p>
         </div>
 
         <!-- Fiksni stroški -->
@@ -156,19 +176,33 @@
     </div>
   </div>
 
-  <!-- POPUP MODAL ZA NOV VNOS -->
+  <!-- POPUP MODAL ZA NOV VNOS / UREJANJE -->
 <div id="vnos-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-5">
     <button type="button" onclick="closeVnosModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
       <i class="fa-solid fa-xmark"></i>
     </button>
-    <h3 class="text-xl font-bold text-center text-gray-900">Nov vnos</h3>
+    <h3 class="text-xl font-bold text-center text-gray-900" id="modal-naslov">Nov vnos</h3>
 
-    <div class="grid grid-cols-2 gap-2">
+    <div id="tip-switcher" class="grid grid-cols-2 gap-2">
       <button type="button" onclick="selectTip('kartica')" id="btn-kartica" class="tip-btn border rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 bg-white text-gray-700 border-gray-200"><i class="fa-regular fa-credit-card text-rose-500"></i> Kartica</button>
       <button type="button" onclick="selectTip('gotovina')" id="btn-gotovina" class="tip-btn border rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 bg-white text-gray-700 border-gray-200"><i class="fa-solid fa-money-bill-wave text-indigo-500"></i> Gotovina</button>
       <button type="button" onclick="selectTip('fiksni')" id="btn-fiksni" class="tip-btn border rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 bg-white text-gray-700 border-gray-200"><i class="fa-solid fa-piggy-bank text-amber-500"></i> Fiksni</button>
       <button type="button" onclick="selectTip('prihodek')" id="btn-prihodek" class="tip-btn border rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 bg-slate-900 text-white border-slate-900"><i class="fa-solid fa-plus text-emerald-600"></i> Prihodek</button>
+    </div>
+    <div id="tip-oznaka" class="hidden text-center text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-lg py-2"></div>
+
+    <div id="kategorija-wrap" class="hidden">
+      <label class="block text-xs font-semibold text-gray-700 mb-1">Kategorija</label>
+      <select id="vnos-kategorija" class="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:outline-none text-sm">
+        <option value="Hrana">Hrana</option>
+        <option value="Prevoz">Prevoz</option>
+        <option value="Stanovanje">Stanovanje</option>
+        <option value="Zabava">Zabava</option>
+        <option value="Zdravje">Zdravje</option>
+        <option value="Oblačila">Oblačila</option>
+        <option value="Drugo">Drugo</option>
+      </select>
     </div>
 
     <div class="grid grid-cols-2 gap-3">
@@ -187,27 +221,66 @@
       <input type="text" id="vnos-opis" placeholder="npr. Plača, Kredit, Trgovina..." class="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:outline-none text-sm">
     </div>
 
+    <div id="ponavljajoc-wrap" class="hidden flex items-center gap-2">
+      <input type="checkbox" id="vnos-ponavljajoc" checked class="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-900">
+      <label for="vnos-ponavljajoc" class="text-xs text-gray-600">Ponavljajoč se strošek (samodejno prenesi v naslednji mesec)</label>
+    </div>
+
     <div class="space-y-2 pt-1">
-      <button type="button" onclick="saveVnos()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 rounded-xl text-sm transition">Shrani</button>
+      <button type="button" onclick="saveVnos()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 rounded-xl text-sm transition"><span id="gumb-shrani-tekst">Shrani</span></button>
       <button type="button" onclick="closeVnosModal()" class="w-full text-center text-sm font-medium text-gray-600 hover:text-gray-900 py-1">Prekliči</button>
     </div>
   </div>
 </div>
 
+  <!-- POTRDITEV BRISANJA -->
+  <div id="confirm-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="w-11 h-11 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto text-lg">
+        <i class="fa-solid fa-trash"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-gray-900">Izbrišem vnos?</h3>
+        <p class="text-xs text-gray-500 mt-1">Tega dejanja ni mogoče razveljaviti.</p>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" onclick="prekliciBrisanje()" class="flex-1 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 py-2 rounded-xl transition">Prekliči</button>
+        <button type="button" onclick="potrdiBrisanje()" class="flex-1 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 py-2 rounded-xl transition">Izbriši</button>
+      </div>
+    </div>
+  </div>
+
 <!-- JAVASCRIPT LOGIKA -->
   <script>
     let trenutniUporabnik = '';
-    let trenutnoLeto = new Date().getFullYear();
-    let trenutniMesec = new Date().getMonth();
     let izbranTip = 'prihodek';
+    let urejanjeIndex = null;
+    let brisanjeCakajoce = null;
     let podatki = { prihodki: [], fiksniStroski: [], kartica: [], gotovina: [], steviloDvigov: 4 };
 
-    // Pomožna funkcija za oblikovanje zneskov v €
+    // ---------- Pomožne funkcije ----------
+
     function formatEUR(znesek) {
       return (Number(znesek) || 0).toLocaleString('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
     }
 
-    // Varno branje iz localStorage (vrne null, če ključ ne obstaja)
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.innerText = str;
+      return div.innerHTML;
+    }
+
+    function kljucZaTip(tip) {
+      return { prihodek: 'prihodki', fiksni: 'fiksniStroski', kartica: 'kartica', gotovina: 'gotovina' }[tip];
+    }
+
+    function oznakaZaTip(tip) {
+      return { prihodek: 'Prihodek', fiksni: 'Fiksni strošek', kartica: 'Plačilo s kartico', gotovina: 'Dvig gotovine' }[tip] || tip;
+    }
+
+    // ---------- localStorage ----------
+
     function preberiShrambo(kljuc) {
       try {
         return localStorage.getItem(kljuc);
@@ -228,9 +301,11 @@
       try {
         localStorage.removeItem(kljuc);
       } catch (e) {
-        // ključ morda ni obstajal, to je v redu
+        // ključ morda ni obstajal
       }
     }
+
+    // ---------- Prijava ----------
 
     function init() {
       trenutniUporabnik = preberiShrambo('aktivniUporabnik') || '';
@@ -240,8 +315,8 @@
         document.getElementById('app-content').classList.remove('hidden');
         document.getElementById('prikaz-uporabnika').innerText = trenutniUporabnik;
 
-        document.getElementById('izbira-leto').value = trenutnoLeto;
-        document.getElementById('izbira-mesec').value = trenutniMesec;
+        document.getElementById('izbira-leto').value = new Date().getFullYear();
+        document.getElementById('izbira-mesec').value = new Date().getMonth();
 
         naloziPodatkeObdobja();
       } else {
@@ -266,9 +341,19 @@
       init();
     }
 
+    // ---------- Obdobja / periode ----------
+
     function vrniKljucShrambe() {
       let leto = document.getElementById('izbira-leto').value;
       let mesec = document.getElementById('izbira-mesec').value;
+      return `proracun_${trenutniUporabnik}_${leto}_${mesec}`;
+    }
+
+    function vrniPrejsnjiKljuc() {
+      let leto = parseInt(document.getElementById('izbira-leto').value, 10);
+      let mesec = parseInt(document.getElementById('izbira-mesec').value, 10);
+      mesec -= 1;
+      if (mesec < 0) { mesec = 11; leto -= 1; }
       return `proracun_${trenutniUporabnik}_${leto}_${mesec}`;
     }
 
@@ -285,24 +370,35 @@
         if (!podatki.gotovina) podatki.gotovina = [];
       } else {
         podatki = { prihodki: [], fiksniStroski: [], kartica: [], gotovina: [], steviloDvigov: 4 };
+
+        // Samodejno prenesi ponavljajoče fiksne stroške iz prejšnjega meseca
+        let prejsnji = preberiShrambo(vrniPrejsnjiKljuc());
+        if (prejsnji) {
+          let prejsnjiPodatki = JSON.parse(prejsnji);
+          if (prejsnjiPodatki.fiksniStroski) {
+            podatki.fiksniStroski = prejsnjiPodatki.fiksniStroski
+              .filter(item => item.ponavljajoc)
+              .map(item => ({ znesek: item.znesek, datum: item.datum, opis: item.opis, ponavljajoc: true }));
+          }
+        }
+        shraniPodatkeObdobja();
       }
 
       const selectElem = document.getElementById('stevilo-dvigov');
-      if (selectElem) {
-        selectElem.value = podatki.steviloDvigov;
-      }
+      if (selectElem) selectElem.value = podatki.steviloDvigov;
 
       izracunajVse();
     }
 
     function shraniPodatkeObdobja() {
-      let kljuc = vrniKljucShrambe();
-      zapisiShrambo(kljuc, JSON.stringify(podatki));
+      zapisiShrambo(vrniKljucShrambe(), JSON.stringify(podatki));
     }
 
     function zamenjajObdobje() {
       naloziPodatkeObdobja();
     }
+
+    // ---------- Izračuni ----------
 
     function izracunajVse() {
       let selectElem = document.getElementById('stevilo-dvigov');
@@ -337,22 +433,86 @@
 
       let napredekPct = razpolozljivaPoraba > 0 ? Math.min(Math.round((skupajPoraba / razpolozljivaPoraba) * 100), 100) : 0;
       let progressBar = document.getElementById('progress-bar');
+      let opozorilo = document.getElementById('budget-opozorilo');
+      let prekoracitev = skupajPoraba - razpolozljivaPoraba;
+
       if (progressBar) {
         progressBar.style.width = napredekPct + '%';
+        if (razpolozljivaPoraba > 0 && prekoracitev > 0) {
+          progressBar.className = 'bg-rose-600 h-full';
+          opozorilo.classList.remove('hidden');
+          opozorilo.querySelector('span').innerText = 'Prekoračili ste razpoložljivi budget za ' + formatEUR(prekoracitev);
+        } else {
+          progressBar.className = 'bg-indigo-600 h-full';
+          opozorilo.classList.add('hidden');
+        }
       }
 
       osveziSezname();
     }
 
+    function izracunajKategorije() {
+      let skupine = {};
+      podatki.kartica.forEach(item => {
+        let kat = item.kategorija || 'Drugo';
+        skupine[kat] = (skupine[kat] || 0) + item.znesek;
+      });
+      return skupine;
+    }
+
+    function renderKategorijskiGraf() {
+      const el = document.getElementById('graf-kategorije');
+      const skupine = izracunajKategorije();
+      const vnosi = Object.entries(skupine).sort((a, b) => b[1] - a[1]);
+
+      if (vnosi.length === 0) {
+        el.innerHTML = '';
+        el.classList.add('hidden');
+        return;
+      }
+
+      el.classList.remove('hidden');
+      const maxVrednost = Math.max(...vnosi.map(v => v[1]));
+      const barve = ['bg-rose-500', 'bg-indigo-500', 'bg-amber-500', 'bg-emerald-500', 'bg-sky-500', 'bg-purple-500', 'bg-gray-400'];
+
+      el.innerHTML = '<h4 class="text-xs font-semibold text-gray-500 mb-3">Poraba po kategorijah</h4>' +
+        vnosi.map(([kat, znesek], i) => `
+          <div class="mb-2.5">
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+              <span>${escapeHtml(kat)}</span>
+              <span class="font-semibold">${formatEUR(znesek)}</span>
+            </div>
+            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+              <div class="${barve[i % barve.length]} h-full" style="width:${maxVrednost > 0 ? Math.round((znesek / maxVrednost) * 100) : 0}%"></div>
+            </div>
+          </div>`).join('');
+    }
+
+    // ---------- Izris seznamov ----------
+
     function osveziSezname() {
+      const elPrihodki = document.getElementById('seznam-prihodki');
+      elPrihodki.innerHTML = podatki.prihodki.length === 0
+        ? '<p class="text-center text-gray-400 my-4">V tem ciklu še ni vnesenih prihodkov.</p>'
+        : podatki.prihodki.map((item, idx) => `
+          <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+            <div><div class="font-medium text-gray-800">${escapeHtml(item.opis) || 'Prihodek'}</div><div class="text-xs text-gray-400">${item.datum || ''}</div></div>
+            <div class="flex items-center gap-3">
+              <span class="font-semibold text-emerald-600">+${formatEUR(item.znesek)}</span>
+              <button onclick="openVnosModal('prihodek', ${idx})" class="text-gray-300 hover:text-indigo-500 text-xs"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="izbrisiVnos('prihodki', ${idx})" class="text-gray-300 hover:text-rose-500 text-xs"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>`).join('');
+
       const elFiksni = document.getElementById('seznam-fiksni');
       elFiksni.innerHTML = podatki.fiksniStroski.length === 0
         ? '<p class="text-gray-400 text-xs text-center py-2">Še ni dodanih fiksnih stroškov.</p>'
         : podatki.fiksniStroski.map((item, idx) => `
           <div class="flex justify-between items-center text-sm">
-            <span>${item.opis || 'Fiksni strošek'}</span>
-            <div class="flex items-center gap-2">
+            <span>${escapeHtml(item.opis) || 'Fiksni strošek'} ${item.ponavljajoc ? '<i class="fa-solid fa-rotate text-gray-300 text-xs" title="Ponavljajoč se strošek"></i>' : ''}</span>
+            <div class="flex items-center gap-3">
               <span class="font-semibold text-rose-600">-${formatEUR(item.znesek)}</span>
+              <button onclick="openVnosModal('fiksni', ${idx})" class="text-gray-300 hover:text-indigo-500 text-xs"><i class="fa-solid fa-pen"></i></button>
               <button onclick="izbrisiVnos('fiksniStroski', ${idx})" class="text-gray-300 hover:text-rose-500 text-xs"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>`).join('');
@@ -362,21 +522,28 @@
         ? '<p class="text-center text-gray-400 my-4">V tem ciklu še ni plačil s kartico.</p>'
         : podatki.kartica.map((item, idx) => `
           <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
-            <div><div class="font-medium text-gray-800">${item.opis || 'Plačilo s kartico'}</div><div class="text-xs text-gray-400">${item.datum}</div></div>
-            <div class="flex items-center gap-2">
+            <div>
+              <div class="font-medium text-gray-800">${escapeHtml(item.opis) || 'Plačilo s kartico'}</div>
+              <div class="text-xs text-gray-400">${item.datum || ''} · ${escapeHtml(item.kategorija || 'Drugo')}</div>
+            </div>
+            <div class="flex items-center gap-3">
               <span class="font-semibold text-gray-900">-${formatEUR(item.znesek)}</span>
+              <button onclick="openVnosModal('kartica', ${idx})" class="text-gray-300 hover:text-indigo-500 text-xs"><i class="fa-solid fa-pen"></i></button>
               <button onclick="izbrisiVnos('kartica', ${idx})" class="text-gray-300 hover:text-rose-500 text-xs"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>`).join('');
+
+      renderKategorijskiGraf();
 
       const elGotovina = document.getElementById('seznam-gotovina');
       elGotovina.innerHTML = podatki.gotovina.length === 0
         ? '<p class="text-center text-gray-400 my-4">V tem ciklu še ni dvigov gotovine.</p>'
         : podatki.gotovina.map((item, idx) => `
           <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
-            <div><div class="font-medium text-gray-800">${item.opis || 'Dvig gotovine'}</div><div class="text-xs text-gray-400">${item.datum}</div></div>
-            <div class="flex items-center gap-2">
+            <div><div class="font-medium text-gray-800">${escapeHtml(item.opis) || 'Dvig gotovine'}</div><div class="text-xs text-gray-400">${item.datum || ''}</div></div>
+            <div class="flex items-center gap-3">
               <span class="font-semibold text-gray-900">-${formatEUR(item.znesek)}</span>
+              <button onclick="openVnosModal('gotovina', ${idx})" class="text-gray-300 hover:text-indigo-500 text-xs"><i class="fa-solid fa-pen"></i></button>
               <button onclick="izbrisiVnos('gotovina', ${idx})" class="text-gray-300 hover:text-rose-500 text-xs"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>`).join('');
@@ -388,6 +555,8 @@
       izracunajVse();
     }
 
+    // ---------- Modal za vnos / urejanje ----------
+
     function selectTip(tip) {
       izbranTip = tip;
       document.querySelectorAll('.tip-btn').forEach(btn => {
@@ -397,27 +566,58 @@
       if (activeBtn) {
         activeBtn.className = 'tip-btn border rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 bg-slate-900 text-white border-slate-900';
       }
+      posodobiVidnostPolj(tip);
     }
 
-    function openVnosModal(tip = 'prihodek') {
-      const danasnjiDatum = new Date().toISOString().split('T')[0];
-      document.getElementById('vnos-datum').value = danasnjiDatum;
-      document.getElementById('vnos-znesek').value = '';
-      document.getElementById('vnos-opis').value = '';
-      selectTip(tip);
+    function posodobiVidnostPolj(tip) {
+      document.getElementById('kategorija-wrap').classList.toggle('hidden', tip !== 'kartica');
+      document.getElementById('ponavljajoc-wrap').classList.toggle('hidden', tip !== 'fiksni');
+    }
+
+    function openVnosModal(tip = 'prihodek', idx = null) {
+      urejanjeIndex = idx;
+      izbranTip = tip;
+
+      document.getElementById('modal-naslov').innerText = idx === null ? 'Nov vnos' : 'Uredi vnos';
+      document.getElementById('gumb-shrani-tekst').innerText = idx === null ? 'Shrani' : 'Posodobi';
+
+      if (idx === null) {
+        document.getElementById('tip-switcher').classList.remove('hidden');
+        document.getElementById('tip-oznaka').classList.add('hidden');
+        selectTip(tip);
+        document.getElementById('vnos-datum').value = new Date().toISOString().split('T')[0];
+        document.getElementById('vnos-znesek').value = '';
+        document.getElementById('vnos-opis').value = '';
+        document.getElementById('vnos-kategorija').value = 'Hrana';
+        document.getElementById('vnos-ponavljajoc').checked = true;
+        posodobiVidnostPolj(tip);
+      } else {
+        document.getElementById('tip-switcher').classList.add('hidden');
+        document.getElementById('tip-oznaka').classList.remove('hidden');
+        document.getElementById('tip-oznaka').innerText = oznakaZaTip(tip);
+        posodobiVidnostPolj(tip);
+
+        let item = podatki[kljucZaTip(tip)][idx];
+        document.getElementById('vnos-znesek').value = item.znesek;
+        document.getElementById('vnos-datum').value = item.datum || new Date().toISOString().split('T')[0];
+        document.getElementById('vnos-opis').value = item.opis || '';
+        if (tip === 'kartica') document.getElementById('vnos-kategorija').value = item.kategorija || 'Drugo';
+        if (tip === 'fiksni') document.getElementById('vnos-ponavljajoc').checked = item.ponavljajoc !== false;
+      }
+
       const modal = document.getElementById('vnos-modal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
     }
 
     function closeVnosModal() {
+      urejanjeIndex = null;
       document.getElementById('vnos-modal').classList.add('hidden');
       document.getElementById('vnos-modal').classList.remove('flex');
     }
 
     function saveVnos() {
-      let rawZnesek = document.getElementById('vnos-znesek').value;
-      let znesek = parseFloat(rawZnesek);
+      let znesek = parseFloat(document.getElementById('vnos-znesek').value);
       let datum = document.getElementById('vnos-datum').value;
       let opis = document.getElementById('vnos-opis').value;
 
@@ -426,16 +626,15 @@
         return;
       }
 
-      let novVnos = { znesek: znesek, datum: datum, opis: opis };
+      let vnos = { znesek, datum, opis };
+      if (izbranTip === 'kartica') vnos.kategorija = document.getElementById('vnos-kategorija').value;
+      if (izbranTip === 'fiksni') vnos.ponavljajoc = document.getElementById('vnos-ponavljajoc').checked;
 
-      if (izbranTip === 'prihodek') {
-        podatki.prihodki.push(novVnos);
-      } else if (izbranTip === 'fiksni') {
-        podatki.fiksniStroski.push(novVnos);
-      } else if (izbranTip === 'kartica') {
-        podatki.kartica.push(novVnos);
-      } else if (izbranTip === 'gotovina') {
-        podatki.gotovina.push(novVnos);
+      let seznamKljuc = kljucZaTip(izbranTip);
+      if (urejanjeIndex === null) {
+        podatki[seznamKljuc].push(vnos);
+      } else {
+        podatki[seznamKljuc][urejanjeIndex] = vnos;
       }
 
       shraniPodatkeObdobja();
@@ -443,10 +642,90 @@
       closeVnosModal();
     }
 
+    // ---------- Brisanje s potrditvijo ----------
+
     function izbrisiVnos(kategorija, idx) {
-      podatki[kategorija].splice(idx, 1);
-      shraniPodatkeObdobja();
-      izracunajVse();
+      brisanjeCakajoce = { kategorija, idx };
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function prekliciBrisanje() {
+      brisanjeCakajoce = null;
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function potrdiBrisanje() {
+      if (brisanjeCakajoce) {
+        podatki[brisanjeCakajoce.kategorija].splice(brisanjeCakajoce.idx, 1);
+        shraniPodatkeObdobja();
+        izracunajVse();
+      }
+      prekliciBrisanje();
+    }
+
+    // ---------- Izvoz / uvoz podatkov ----------
+
+    function izvoziPodatke() {
+      let izvoz = { uporabnik: trenutniUporabnik, obdobja: {} };
+      let prefix = `proracun_${trenutniUporabnik}_`;
+
+      for (let i = 0; i < localStorage.length; i++) {
+        let kljuc = localStorage.key(i);
+        if (kljuc && kljuc.startsWith(prefix)) {
+          let obdobje = kljuc.substring(prefix.length);
+          try {
+            izvoz.obdobja[obdobje] = JSON.parse(localStorage.getItem(kljuc));
+          } catch (e) { /* preskoči neveljavne vnose */ }
+        }
+      }
+
+      if (Object.keys(izvoz.obdobja).length === 0) {
+        alert('Ni podatkov za izvoz.');
+        return;
+      }
+
+      let blob = new Blob([JSON.stringify(izvoz, null, 2)], { type: 'application/json' });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url;
+      a.download = `proracun_${trenutniUporabnik}_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function sprozitelUvoz() {
+      document.getElementById('uvoz-file-input').click();
+    }
+
+    function uvoziPodatke(event) {
+      let file = event.target.files[0];
+      if (!file) return;
+
+      let reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          let uvoz = JSON.parse(e.target.result);
+          if (!uvoz.obdobja) throw new Error('Neveljavna datoteka');
+
+          let prefix = `proracun_${trenutniUporabnik}_`;
+          Object.keys(uvoz.obdobja).forEach(obdobje => {
+            zapisiShrambo(prefix + obdobje, JSON.stringify(uvoz.obdobja[obdobje]));
+          });
+
+          alert('Podatki so bili uspešno uvoženi.');
+          naloziPodatkeObdobja();
+        } catch (err) {
+          alert('Napaka pri uvozu datoteke. Preverite, da gre za veljavno varnostno kopijo.');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
     }
 
     // Zagon po nalaganju celotne strani
