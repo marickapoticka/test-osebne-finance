@@ -207,34 +207,33 @@
       return (Number(znesek) || 0).toLocaleString('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
     }
 
-    // Varno branje iz trajne shrambe (vrne null, če ključ ne obstaja)
-    async function preberiShrambo(kljuc) {
+    // Varno branje iz localStorage (vrne null, če ključ ne obstaja)
+    function preberiShrambo(kljuc) {
       try {
-        const rezultat = await window.storage.get(kljuc, false);
-        return rezultat ? rezultat.value : null;
+        return localStorage.getItem(kljuc);
       } catch (e) {
         return null;
       }
     }
 
-    async function zapisiShrambo(kljuc, vrednost) {
+    function zapisiShrambo(kljuc, vrednost) {
       try {
-        await window.storage.set(kljuc, vrednost, false);
+        localStorage.setItem(kljuc, vrednost);
       } catch (e) {
         console.error('Napaka pri shranjevanju:', e);
       }
     }
 
-    async function izbrisiShrambo(kljuc) {
+    function izbrisiShrambo(kljuc) {
       try {
-        await window.storage.delete(kljuc, false);
+        localStorage.removeItem(kljuc);
       } catch (e) {
         // ključ morda ni obstajal, to je v redu
       }
     }
 
-    async function init() {
-      trenutniUporabnik = (await preberiShrambo('aktivniUporabnik')) || '';
+    function init() {
+      trenutniUporabnik = preberiShrambo('aktivniUporabnik') || '';
 
       if (trenutniUporabnik) {
         document.getElementById('login-modal').classList.add('hidden');
@@ -244,27 +243,27 @@
         document.getElementById('izbira-leto').value = trenutnoLeto;
         document.getElementById('izbira-mesec').value = trenutniMesec;
 
-        await naloziPodatkeObdobja();
+        naloziPodatkeObdobja();
       } else {
         document.getElementById('login-modal').classList.remove('hidden');
         document.getElementById('app-content').classList.add('hidden');
       }
     }
 
-    async function prijaviUporabnika(e) {
+    function prijaviUporabnika(e) {
       e.preventDefault();
       let inputUser = document.getElementById('username-input').value.trim();
       if (inputUser) {
         trenutniUporabnik = inputUser;
-        await zapisiShrambo('aktivniUporabnik', trenutniUporabnik);
-        await init();
+        zapisiShrambo('aktivniUporabnik', trenutniUporabnik);
+        init();
       }
     }
 
-    async function odjava() {
-      await izbrisiShrambo('aktivniUporabnik');
+    function odjava() {
+      izbrisiShrambo('aktivniUporabnik');
       trenutniUporabnik = '';
-      await init();
+      init();
     }
 
     function vrniKljucShrambe() {
@@ -273,9 +272,9 @@
       return `proracun_${trenutniUporabnik}_${leto}_${mesec}`;
     }
 
-    async function naloziPodatkeObdobja() {
+    function naloziPodatkeObdobja() {
       let kljuc = vrniKljucShrambe();
-      let shranjeno = await preberiShrambo(kljuc);
+      let shranjeno = preberiShrambo(kljuc);
 
       if (shranjeno) {
         podatki = JSON.parse(shranjeno);
@@ -296,13 +295,13 @@
       izracunajVse();
     }
 
-    async function shraniPodatkeObdobja() {
+    function shraniPodatkeObdobja() {
       let kljuc = vrniKljucShrambe();
-      await zapisiShrambo(kljuc, JSON.stringify(podatki));
+      zapisiShrambo(kljuc, JSON.stringify(podatki));
     }
 
-    async function zamenjajObdobje() {
-      await naloziPodatkeObdobja();
+    function zamenjajObdobje() {
+      naloziPodatkeObdobja();
     }
 
     function izracunajVse() {
@@ -383,9 +382,9 @@
           </div>`).join('');
     }
 
-    async function spremeniSteviloDvigov() {
+    function spremeniSteviloDvigov() {
       podatki.steviloDvigov = document.getElementById('stevilo-dvigov').value;
-      await shraniPodatkeObdobja();
+      shraniPodatkeObdobja();
       izracunajVse();
     }
 
@@ -416,7 +415,7 @@
       document.getElementById('vnos-modal').classList.remove('flex');
     }
 
-    async function saveVnos() {
+    function saveVnos() {
       let rawZnesek = document.getElementById('vnos-znesek').value;
       let znesek = parseFloat(rawZnesek);
       let datum = document.getElementById('vnos-datum').value;
@@ -439,14 +438,14 @@
         podatki.gotovina.push(novVnos);
       }
 
-      await shraniPodatkeObdobja();
+      shraniPodatkeObdobja();
       izracunajVse();
       closeVnosModal();
     }
 
-    async function izbrisiVnos(kategorija, idx) {
+    function izbrisiVnos(kategorija, idx) {
       podatki[kategorija].splice(idx, 1);
-      await shraniPodatkeObdobja();
+      shraniPodatkeObdobja();
       izracunajVse();
     }
 
